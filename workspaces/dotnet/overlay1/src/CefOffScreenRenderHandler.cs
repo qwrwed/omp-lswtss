@@ -44,14 +44,8 @@ partial class Overlay1
 
         public void OnAcceleratedPaint(CefSharp.PaintElementType type, CefSharp.Structs.Rect dirtyRect, CefSharp.AcceleratedPaintInfo acceleratedPaintInfo)
         {
-            if (
-                type == CefSharp.PaintElementType.View
-                &&
-                _overlay1._directX11OverlayQuad != null
-            )
-            {
-                _overlay1._directX11OverlayQuad.UpdateTexture(acceleratedPaintInfo.SharedTextureHandle);
-            }
+            // Not used: the browser is created with SharedTextureEnabled = false,
+            // so CEF delivers frames via OnPaint (software) instead.
         }
 
         public void OnCursorChange(nint cursor, CefSharp.Enums.CursorType type, CefSharp.Structs.CursorInfo customCursorInfo)
@@ -65,6 +59,14 @@ partial class Overlay1
 
         public void OnPaint(CefSharp.PaintElementType type, CefSharp.Structs.Rect dirtyRect, nint buffer, int width, int height)
         {
+            if (
+                type == CefSharp.PaintElementType.View
+                &&
+                _overlay1._directX11OverlayQuad != null
+            )
+            {
+                _overlay1._directX11OverlayQuad.QueueBgraTextureUpdate(buffer, width, height);
+            }
         }
 
         public void OnPopupShow(bool show)

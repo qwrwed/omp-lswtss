@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace OMP.LSWTSS;
@@ -19,13 +20,28 @@ partial class Overlay1
 
         readonly DirectX11Quad _quad;
 
+        // A FlipDiscard swapchain rotates its back buffer every frame, so the
+        // render target view must come from the *current* back buffer each frame.
+        // There are only a couple of distinct back-buffer resources, so cache a
+        // view per resource instead of recreating one every frame.
+        readonly Dictionary<IntPtr, SharpDX.Direct3D11.RenderTargetView> _renderTargetViewByBackBuffer = new();
+
+        // CEF software paint: OnPaint (CEF thread) copies the BGRA pixel buffer
+        // into this managed array under the lock; the GPU upload happens later on
+        // the game's render thread in Draw, so the device context is only ever
+        // used from one thread. This avoids the GPU shared-texture path entirely,
+        // which sidesteps the cross-GPU and threading problems.
+        byte[]? _queuedBgraTextureBytes;
+
+        int _queuedBgraTextureWidth;
+
+        int _queuedBgraTextureHeight;
+
+        bool _isBgraTextureQueued;
+
         readonly object _lock;
 
         bool _isDisposed;
-
-        SharpDX.Direct3D11.Texture2D? _sharedTexture;
-
-        volatile bool _isSharedTextureDirty;
 
         public readonly SharpDX.DXGI.SwapChain SwapChain;
 
@@ -77,72 +93,106 @@ partial class Overlay1
 
             _texture = new SharpDX.Direct3D11.Texture2D(_device1, _textureDesc);
 
-            _quad = new DirectX11Quad(_device1, _texture, _textureDesc, backBuffer, backBufferViewport);
+            _quad = new DirectX11Quad(_device1, _texture, _textureDesc, backBufferViewport);
+
+            backBuffer.Dispose();
 
             _lock = new object();
         }
 
-        public void UpdateTexture(nint sharedTextureNativeHandle)
+        SharpDX.Direct3D11.RenderTargetView GetOrCreateCurrentRenderTargetView()
         {
+            using var backBuffer = SwapChain.GetBackBuffer<SharpDX.Direct3D11.Texture2D>(0);
+
+            var key = backBuffer.NativePointer;
+
+            if (!_renderTargetViewByBackBuffer.TryGetValue(key, out var renderTargetView))
+            {
+                renderTargetView = new SharpDX.Direct3D11.RenderTargetView(_device1, backBuffer);
+                _renderTargetViewByBackBuffer[key] = renderTargetView;
+            }
+
+            return renderTargetView;
+        }
+
+        // Called from CEF's OnPaint thread. Copies the CPU pixel buffer into a
+        // managed array only - no device-context work here.
+        public void QueueBgraTextureUpdate(nint buffer, int width, int height)
+        {
+            if (buffer == nint.Zero)
+            {
+                return;
+            }
+
+            var byteCount = checked(width * height * 4);
+
             lock (_lock)
             {
                 if (_isDisposed)
                 {
-                    throw new InvalidOperationException();
+                    return;
                 }
 
-                if (_sharedTexture?.NativePointer != sharedTextureNativeHandle)
+                if (width != _textureDesc.Width || height != _textureDesc.Height)
                 {
-                    _sharedTexture?.Dispose();
-                    _sharedTexture = _device1.OpenSharedResource1<SharpDX.Direct3D11.Texture2D>(sharedTextureNativeHandle);
+                    return;
                 }
 
-                _isSharedTextureDirty = true;
+                if (_queuedBgraTextureBytes == null || _queuedBgraTextureBytes.Length != byteCount)
+                {
+                    _queuedBgraTextureBytes = new byte[byteCount];
+                }
+
+                Marshal.Copy(buffer, _queuedBgraTextureBytes, 0, byteCount);
+
+                _queuedBgraTextureWidth = width;
+                _queuedBgraTextureHeight = height;
+                _isBgraTextureQueued = true;
+            }
+        }
+
+        // Called from the game's render thread (in Draw). Uploads the queued CPU
+        // buffer to the GPU texture on the immediate context.
+        void UploadQueuedBgraTexture()
+        {
+            if (!_isBgraTextureQueued || _queuedBgraTextureBytes == null)
+            {
+                return;
+            }
+
+            var pinned = GCHandle.Alloc(_queuedBgraTextureBytes, GCHandleType.Pinned);
+
+            try
+            {
+                var dataBox = new SharpDX.DataBox(
+                    pinned.AddrOfPinnedObject(),
+                    _queuedBgraTextureWidth * 4,
+                    0
+                );
+
+                _deviceContext.UpdateSubresource(dataBox, _texture, 0);
+
+                _isBgraTextureQueued = false;
+            }
+            finally
+            {
+                pinned.Free();
             }
         }
 
         public void Draw()
         {
-
             if (_isDisposed)
             {
                 throw new InvalidOperationException();
             }
 
-            if (_isSharedTextureDirty)
+            lock (_lock)
             {
-                lock (_lock)
-                {
-                    if (_sharedTexture != null)
-                    {
-                        try
-                        {
-                            var sharedTextureDesc = _sharedTexture.Description;
+                UploadQueuedBgraTexture();
 
-                            if (
-                                sharedTextureDesc.Width == _textureDesc.Width
-                                &&
-                                sharedTextureDesc.Height == _textureDesc.Height
-                                &&
-                                sharedTextureDesc.Format == _textureDesc.Format
-                            )
-                            {
-                                _deviceContext.CopyResource(_sharedTexture, _texture);
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine(e);
-                        }
-                        finally
-                        {
-                            _isSharedTextureDirty = false;
-                        }
-                    }
-                }
+                _quad.Draw(GetOrCreateCurrentRenderTargetView());
             }
-
-            _quad.Draw();
         }
 
         public void Dispose()
@@ -153,9 +203,13 @@ partial class Overlay1
                 {
                     _quad.Dispose();
                     _texture.Dispose();
+                    foreach (var renderTargetView in _renderTargetViewByBackBuffer.Values)
+                    {
+                        renderTargetView.Dispose();
+                    }
+                    _renderTargetViewByBackBuffer.Clear();
                     _deviceContext.Dispose();
                     _device1.Dispose();
-                    _sharedTexture?.Dispose();
 
                     _isDisposed = true;
                 }

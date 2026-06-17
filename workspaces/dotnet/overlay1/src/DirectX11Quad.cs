@@ -8,8 +8,6 @@ partial class Overlay1
     {
         readonly SharpDX.Direct3D11.DeviceContext _deviceContext;
 
-        readonly SharpDX.Direct3D11.RenderTargetView _renderTargetView;
-
         readonly SharpDX.Mathematics.Interop.RawViewportF _renderTargetViewport;
 
         readonly SharpDX.Direct3D11.BlendState _blendState;
@@ -38,13 +36,10 @@ partial class Overlay1
             SharpDX.Direct3D11.Device device,
             SharpDX.Direct3D11.Texture2D texture,
             SharpDX.Direct3D11.Texture2DDescription textureDesc,
-            SharpDX.Direct3D11.Texture2D renderTargetTexture,
             SharpDX.Mathematics.Interop.RawViewportF renderTargetViewport
         )
         {
             _deviceContext = device.ImmediateContext;
-
-            _renderTargetView = new SharpDX.Direct3D11.RenderTargetView(device, renderTargetTexture);
 
             _renderTargetViewport = renderTargetViewport;
 
@@ -233,7 +228,7 @@ partial class Overlay1
             );
         }
 
-        public void Draw()
+        public void Draw(SharpDX.Direct3D11.RenderTargetView renderTargetView)
         {
             if (_isDisposed)
             {
@@ -242,7 +237,7 @@ partial class Overlay1
 
             using var retainingStateBlock = new DirectX11StateBlock(_deviceContext);
 
-            _deviceContext.OutputMerger.SetRenderTargets(null, _renderTargetView);
+            _deviceContext.OutputMerger.SetRenderTargets(null, renderTargetView);
 
             _deviceContext.Rasterizer.SetViewport(_renderTargetViewport);
 
@@ -289,7 +284,6 @@ partial class Overlay1
                 _vertexBuffer.Dispose();
                 _rasterizerState.Dispose();
                 _blendState.Dispose();
-                _renderTargetView.Dispose();
                 _deviceContext.Dispose();
 
                 _isDisposed = true;

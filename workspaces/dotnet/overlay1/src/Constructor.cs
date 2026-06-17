@@ -18,7 +18,7 @@ partial class Overlay1
 
         var cefWindowInfo = CefSharp.Core.ObjectFactory.CreateWindowInfo();
 
-        cefWindowInfo.SharedTextureEnabled = true;
+        cefWindowInfo.SharedTextureEnabled = false;
         cefWindowInfo.SetAsWindowless(IntPtr.Zero);
 
         ChromiumWebBrowser.CreateBrowser(cefWindowInfo, null);

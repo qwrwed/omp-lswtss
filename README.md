@@ -4,6 +4,30 @@
 
 At this moment, discussion about all project's related stuff is held on [**TTGames LEGO Modding Discord Server**](https://discord.gg/9gYXPka). Feel free to join and find the discussion in `modding_forum/Open Modding Platform - LSW:TSS (Development Updates)` thread.
 
+## Installation
+
+OMP runs on a **clean installation** of the game. The game files must **not** be extracted and the game must **not** be patched - a fresh install from Steam or EGS works as-is.
+
+1. Download the latest release archive from the [Releases page](https://github.com/open-modding-platform/omp-lswtss/releases/latest).
+2. Extract its **entire contents** into the game's root directory - the folder that contains `LEGOSTARWARSSKYWALKERSAGA_DX11.exe`. After extracting, that folder should contain (alongside the game's own files):
+   - `dinput8.dll`
+   - `omp-lswtss-driver.dll`
+   - `omp-lswtss-driver-config.json`
+   - `omp-lswtss-runtime-engine-<version>/`
+   - `mods/` - one subfolder per mod, each containing a `mod.json`
+3. Launch the game normally from Steam or EGS. OMP loads automatically via `dinput8.dll`; no patching or launcher is required.
+
+To uninstall, delete the files and folders listed in step 2 from the game directory.
+
+### Multi-GPU (laptop) note
+
+On systems with two GPUs (e.g. a laptop with integrated + discrete graphics), mods that draw an on-screen overlay (such as Galaxy Unleashed) need the game **and** Chromium's helper process to run on the **same** GPU - otherwise the overlay's GPU texture can't be shared and the overlay won't appear.
+
+If a mod's overlay doesn't show up, set both of these executables to the **same** GPU in Windows → Settings → System → Display → Graphics (add each app, choose "High performance"):
+
+- `LEGOSTARWARSSKYWALKERSAGA_DX11.exe` (in the game's root directory)
+- `CefSharp.BrowserSubprocess.exe` (under `mods/overlay1/`)
+
 ## Contributing
 
 ### Requirements

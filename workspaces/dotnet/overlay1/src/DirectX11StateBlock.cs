@@ -44,7 +44,17 @@ partial class Overlay1
         {
             _deviceContext = deviceContext;
             _rasterizerState = deviceContext.Rasterizer.State;
-            _viewports = deviceContext.Rasterizer.GetViewports<SharpDX.Mathematics.Interop.RawViewportF>();
+            // SharpDX's parameterless GetViewports<T>() can throw
+            // IndexOutOfRangeException in some device states; fall back to no saved
+            // viewports (the game sets its own viewport each frame anyway).
+            try
+            {
+                _viewports = deviceContext.Rasterizer.GetViewports<SharpDX.Mathematics.Interop.RawViewportF>();
+            }
+            catch
+            {
+                _viewports = System.Array.Empty<SharpDX.Mathematics.Interop.RawViewportF>();
+            }
             _renderTargetViews = deviceContext.OutputMerger.GetRenderTargets(
                 SharpDX.Direct3D11.OutputMergerStage.SimultaneousRenderTargetCount,
                 out _depthStencilView
@@ -70,7 +80,10 @@ partial class Overlay1
             }
 
             _deviceContext.Rasterizer.State = _rasterizerState;
-            _deviceContext.Rasterizer.SetViewports(_viewports);
+            if (_viewports.Length > 0)
+            {
+                _deviceContext.Rasterizer.SetViewports(_viewports);
+            }
             _deviceContext.OutputMerger.SetRenderTargets(_depthStencilView, _renderTargetViews);
             _deviceContext.OutputMerger.SetBlendState(_blendState, _blendFactors, _blendSampleMask);
             _deviceContext.InputAssembler.InputLayout = _inputLayout;
