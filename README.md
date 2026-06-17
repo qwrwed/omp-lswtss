@@ -8,7 +8,7 @@ At this moment, discussion about all project's related stuff is held on [**TTGam
 
 OMP runs on a **clean installation** of the game. The game files must **not** be extracted and the game must **not** be patched - a fresh install from Steam or EGS works as-is.
 
-1. Download the latest release archive from the [Releases page](https://github.com/open-modding-platform/omp-lswtss/releases/latest).
+1. Download the latest release archive from the [Releases page](https://github.com/qwrwed/omp-lswtss/releases/latest).
 2. Extract its **entire contents** into the game's root directory - the folder that contains `LEGOSTARWARSSKYWALKERSAGA_DX11.exe`. After extracting, that folder should contain (alongside the game's own files):
    - `dinput8.dll`
    - `omp-lswtss-driver.dll`
