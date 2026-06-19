@@ -100,7 +100,7 @@ partial class Overlay1
             _lock = new object();
         }
 
-        SharpDX.Direct3D11.RenderTargetView GetOrCreateCurrentRenderTargetView()
+        SharpDX.Direct3D11.RenderTargetView? GetOrCreateCurrentRenderTargetView()
         {
             using var backBuffer = SwapChain.GetBackBuffer<SharpDX.Direct3D11.Texture2D>(0);
 
@@ -191,7 +191,12 @@ partial class Overlay1
             {
                 UploadQueuedBgraTexture();
 
-                _quad.Draw(GetOrCreateCurrentRenderTargetView());
+                var renderTargetView = GetOrCreateCurrentRenderTargetView();
+
+                if (renderTargetView == null)
+                    return; // swap chain is mid-transition, skip this frame
+
+                _quad.Draw(renderTargetView);
             }
         }
 

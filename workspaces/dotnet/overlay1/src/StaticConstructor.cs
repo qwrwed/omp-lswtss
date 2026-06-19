@@ -14,6 +14,10 @@ partial class Overlay1
 
         // This line improves the performance
         cefOffScreenSettings.CefCommandLineArgs.Add("disable-threaded-scrolling", "1");
+        // Wine/Proton: prevent Chromium from querying WinRT UISettings/UIViewSettings (no-op on Windows)
+        cefOffScreenSettings.CefCommandLineArgs.Add("force-color-profile", "srgb");
+        cefOffScreenSettings.CefCommandLineArgs.Add("disable-features", "CalculateNativeWinOcclusion,WinStylusInput");
+        cefOffScreenSettings.CefCommandLineArgs.Add("disable-direct-composition", "1");
 
         CefSharp.Cef.Initialize(
             cefOffScreenSettings,

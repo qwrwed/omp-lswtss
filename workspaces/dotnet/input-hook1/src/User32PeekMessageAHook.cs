@@ -41,47 +41,53 @@ partial class InputHook1
 
                 if (ret)
                 {
-                    if (lpMsg->hwnd == _currentWindowNativeHandle)
+                    if (
+                        lpMsg->message >= PInvoke.User32.WindowMessage.WM_KEYFIRST
+                        &&
+                        lpMsg->message <= PInvoke.User32.WindowMessage.WM_KEYLAST
+                    )
                     {
-                        if (lpMsg->message == PInvoke.User32.WindowMessage.WM_INPUT)
+                        // Learn the game window hwnd from keyboard messages. We can't read
+                        // it from the swap chain object (DXVK layout varies by build), but
+                        // keyboard messages always carry the focused window's hwnd.
+                        if (lpMsg->hwnd != nint.Zero)
+                            _currentWindowNativeHandle = lpMsg->hwnd;
+
+                        var nativeMessage = new NativeMessage(
+                            lpMsg->hwnd,
+                            (int)lpMsg->message,
+                            lpMsg->wParam,
+                            lpMsg->lParam,
+                            lpMsg->pt.x,
+                            lpMsg->pt.y
+                        );
+
+                        bool wasNativeMessageHandled = false;
+
+                        lock (_clients)
                         {
-                            var nativeMessage = new NativeMessage(
-                                lpMsg->hwnd,
-                                (int)lpMsg->message,
-                                lpMsg->wParam,
-                                lpMsg->lParam,
-                                lpMsg->pt.x,
-                                lpMsg->pt.y
-                            );
-
-                            bool wasNativeMessageHandled = false;
-
-                            lock (_clients)
+                            foreach (var client in _clients)
                             {
-                                foreach (var client in _clients)
+                                if (client.HandleNativeMessage(nativeMessage))
                                 {
-                                    if (client.HandleNativeMessage(nativeMessage))
-                                    {
-                                        wasNativeMessageHandled = true;
-                                        break;
-                                    }
+                                    wasNativeMessageHandled = true;
+                                    break;
                                 }
                             }
-
-                            if (wasNativeMessageHandled)
-                            {
-                                PInvoke.User32.TranslateMessage(lpMsg);
-                            }
-                            else
-                            {
-                                return true;
-                            }
                         }
-                        else if (
-                            lpMsg->message >= PInvoke.User32.WindowMessage.WM_KEYFIRST
-                            &&
-                            lpMsg->message <= PInvoke.User32.WindowMessage.WM_KEYLAST
-                        )
+
+                        if (wasNativeMessageHandled)
+                        {
+                            PInvoke.User32.TranslateMessage(lpMsg);
+                        }
+                        else
+                        {
+                            return true;
+                        }
+                    }
+                    else if (lpMsg->hwnd == _currentWindowNativeHandle)
+                    {
+                        if (lpMsg->message == PInvoke.User32.WindowMessage.WM_INPUT)
                         {
                             var nativeMessage = new NativeMessage(
                                 lpMsg->hwnd,

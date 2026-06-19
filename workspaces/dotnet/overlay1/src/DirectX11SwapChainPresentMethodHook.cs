@@ -22,28 +22,33 @@ partial class Overlay1
                 {
                     foreach (var instance in _instances!)
                     {
-                        if (
-                            instance._directX11OverlayQuad == null
-                            ||
-                            instance._directX11OverlayQuad.SwapChain.NativePointer != swapChainNativeHandle
-                        )
-                        {
-                            instance._directX11OverlayQuad?.Dispose();
-
-                            instance._directX11OverlayQuad = new DirectX11OverlayQuad(
-                                new SharpDX.DXGI.SwapChain(swapChainNativeHandle)
-                            );
-
-                            CefSharp.WebBrowserExtensions.GetBrowserHost(instance.ChromiumWebBrowser).WindowlessFrameRate = 60;
-
-                            instance.ChromiumWebBrowser.Size = new System.Drawing.Size(
-                                instance._directX11OverlayQuad.TextureWidth,
-                                instance._directX11OverlayQuad.TextureHeight
-                            );
-                        }
-
                         if (instance.IsVisible)
                         {
+                            if (
+                                instance._directX11OverlayQuad == null
+                                ||
+                                instance._directX11OverlayQuad.SwapChain.NativePointer != swapChainNativeHandle
+                            )
+                            {
+                                instance._directX11OverlayQuad?.Dispose();
+
+                                // AddRef before wrapping: SharpDX doesn't AddRef in the constructor,
+                                // so without this the wrapper's finalizer would Release the game's
+                                // only reference and destroy the swap chain.
+                                System.Runtime.InteropServices.Marshal.AddRef(swapChainNativeHandle);
+
+                                instance._directX11OverlayQuad = new DirectX11OverlayQuad(
+                                    new SharpDX.DXGI.SwapChain(swapChainNativeHandle)
+                                );
+
+                                CefSharp.WebBrowserExtensions.GetBrowserHost(instance.ChromiumWebBrowser).WindowlessFrameRate = 60;
+
+                                instance.ChromiumWebBrowser.Size = new System.Drawing.Size(
+                                    instance._directX11OverlayQuad.TextureWidth,
+                                    instance._directX11OverlayQuad.TextureHeight
+                                );
+                            }
+
                             instance._directX11OverlayQuad.Draw();
                         }
                     }

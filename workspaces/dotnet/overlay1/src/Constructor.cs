@@ -7,7 +7,7 @@ partial class Overlay1
     public Overlay1(int order)
     {
         Order = order;
-        IsVisible = true;
+        IsVisible = false;
 
         ChromiumWebBrowser = new CefSharp.OffScreen.ChromiumWebBrowser(
             automaticallyCreateBrowser: false
