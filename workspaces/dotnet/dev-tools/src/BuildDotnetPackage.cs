@@ -35,7 +35,8 @@ public static class BuildDotnetPackage
 
         if (dotnetProcess.ExitCode != 0)
         {
-            throw new InvalidOperationException();
+            Console.Error.WriteLine($"dotnet build failed (exit code {dotnetProcess.ExitCode}) in {dotnetPackageDirPath}");
+            Environment.Exit(dotnetProcess.ExitCode);
         }
     }
 }

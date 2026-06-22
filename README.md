@@ -46,6 +46,38 @@ Navigate to `workspaces/dotnet/dev-tools` and execute:
 dotnet run -- build-all [PATH_TO_STEAM_GAME_DIRECTORY] [PATH_TO_EGS_GAME_DIRECTORY]
 ```
 
+`build-all` requires both game versions because the `c-api1` component scrapes each version at build time. Every other component builds with **no game directory**, so you can build them all (everything `build-all` does except `c-api1`) with:
+```sh
+dotnet run -- build-all-no-c-api1
+```
+or build a single component individually, e.g.:
+```sh
+dotnet run -- build-overlay1
+```
+
+### Releasing without the EGS version
+
+`build-all` needs both game versions only because of the `c-api1` component: it launches each game version and scrapes its native API at build time. Every other component compiles from source with **no game directory**. So if your changes don't touch `c-api1`, you can cut a release with only the Steam version by rebuilding the components you changed and swapping them into the latest existing release bundle (which already contains an upstream-built `c-api1`).
+
+The script `scripts/package-release.ps1` automates this (requires `gh`, authenticated):
+```sh
+./scripts/package-release.ps1 -Tag v0.5.1 -PublishRepo <owner>/<repo> -Publish
+```
+`-PublishRepo` is required whenever `-Publish` is used, so the release can only go to a repo you name explicitly. Omit `-Publish` to just build the bundle locally (`omp-release.zip`, a complete installable release) without publishing - e.g. to test it in a game first. Use `-OutZip <name>.zip` to name it.
+
+The manual equivalent:
+
+1. Rebuild every non-`c-api1` component with `dotnet run -- build-all-no-c-api1` (or just the component you changed, e.g. `dotnet run -- build-overlay1`). Output goes to `dist/<component>/`.
+2. Download the latest release archive from the upstream [Releases page](https://github.com/open-modding-platform/omp-lswtss/releases/latest) and extract it.
+3. In the extracted bundle, replace each changed component's file(s) under `mods/<component>/` (or the `omp-lswtss-runtime-engine-<version>/` folder for the runtime engine) with your rebuilt one(s).
+4. Zip the bundle's contents (any archive tool works) and publish it as a release with the [GitHub CLI](https://cli.github.com/):
+   ```sh
+   gh release create <tag> <bundle>.zip --title "<title>" --notes "<notes>"
+   ```
+   Add `--repo <owner>/<repo>` if the repository has more than one remote (otherwise `gh` reports "no default remote repository has been set").
+
+This reuses the upstream-built `c-api1` and any components you didn't change, so the EGS version is never needed.
+
 ### Testing
 
 Navigate to `workspaces/dotnet/dev-tools` and execute:
@@ -63,7 +95,12 @@ dotnet run -- run-steam-game [PATH_TO_STEAM_GAME_DIRECTORY]
 ### VSCode Integration
 
 1. Install recommended VSCode Extensions
-2. Create `.vscode/tasks.local.json` and add entries to `inputs` field, example:
+2. Create `.vscode/tasks.local.json` with an `inputs` field. Replace each `PATH_TO_*` placeholder below with your game folder (the one with `LEGOSTARWARSSKYWALKERSAGA_DX11.exe`), listing only the version(s) you own. The four inputs:
+   - `gameDirPath` - any version
+   - `steamGameDirPath` / `egsGameDirPath` - that specific version
+   - `devGameDirPath` - the install you develop against (`dev-*` tasks)
+
+   Example:
 ```json
 {
   "version": "2.0.0",
@@ -91,6 +128,14 @@ dotnet run -- run-steam-game [PATH_TO_STEAM_GAME_DIRECTORY]
       "type": "pickString",
       "options": [
         "PATH_TO_EGS_GAME_DIRECTORY",
+      ]
+    },
+    {
+      "id": "devGameDirPath",
+      "description": "devGameDirPath",
+      "type": "pickString",
+      "options": [
+        "PATH_TO_GAME_DIRECTORY_TO_DEVELOP_AGAINST",
       ]
     }
   ]

@@ -33,7 +33,7 @@ public static class BuildJsPackage
 
         if (dotnetProcess.ExitCode != 0)
         {
-            throw new InvalidOperationException();
+            throw new Exception($"yarn build failed (exit code {dotnetProcess.ExitCode}) in {jsPackageDirPath}");
         }
     }
 }

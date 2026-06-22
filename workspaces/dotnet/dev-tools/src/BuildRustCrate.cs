@@ -33,7 +33,8 @@ public static class BuildRustCrate
 
         if (cargoProcess.ExitCode != 0)
         {
-            throw new InvalidOperationException();
+            Console.Error.WriteLine($"cargo build failed (exit code {cargoProcess.ExitCode}) in {rustCrateDirPath}");
+            Environment.Exit(cargoProcess.ExitCode);
         }
     }
 }

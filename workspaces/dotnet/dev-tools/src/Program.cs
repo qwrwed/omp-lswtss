@@ -112,6 +112,10 @@ else if (commandName == "build-all")
     string egsGameDirPath = args[2];
     BuildAll.Execute(steamGameDirPath, egsGameDirPath);
 }
+else if (commandName == "build-all-no-c-api1")
+{
+    BuildAllNoCApi1.Execute();
+}
 else if (commandName == "install-all")
 {
     string gameDirPath = args[1];
