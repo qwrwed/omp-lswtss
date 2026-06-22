@@ -17,7 +17,7 @@ PREFIX_PARENT="$(find "$HOME/.local/share/Steam/steamapps/compatdata" /run/media
 if [ -z "$PREFIX_PARENT" ] || [ ! -d "$PREFIX_PARENT/pfx/drive_c" ]; then
     notify-send "OMP Setup" "Launching game to initialise prefix — quit as soon as it starts." 2>/dev/null || true
     echo "Proton prefix not yet initialised. Launching game — quit as soon as it starts."
-    xdg-open "steam://run/920210"
+    DISPLAY=:0 xdg-open "steam://run/920210"
     until PREFIX_PARENT="$(find "$HOME/.local/share/Steam/steamapps/compatdata" /run/media -maxdepth 10 -name "920210" -type d 2>/dev/null | head -1)" \
           && [ -n "$PREFIX_PARENT" ] && [ -d "$PREFIX_PARENT/pfx/drive_c" ]; do
         sleep 3
