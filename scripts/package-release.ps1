@@ -213,7 +213,11 @@ if ($Publish) {
     # -PublishRepo is mandatory so we never fall back to gh's default repo and
     # accidentally publish to the wrong place (e.g. upstream).
     if (-not $PublishRepo) { throw "-Publish requires -PublishRepo <owner>/<repo>" }
-    $ghArgs = @("release", "create", $Tag, $outZip, "--repo", $PublishRepo, "--title", ($Title ?? $Tag), "--notes", ($Notes ?? ""))
+    # Title/notes must be non-empty: empty values make GitHub fall back to
+    # rendering the tag's commit message as the release title/body.
+    $relTitle = if ([string]::IsNullOrWhiteSpace($Title)) { $Tag } else { $Title }
+    $relNotes = if ([string]::IsNullOrWhiteSpace($Notes)) { $Tag } else { $Notes }
+    $ghArgs = @("release", "create", $Tag, $outZip, "--repo", $PublishRepo, "--title", $relTitle, "--notes", $relNotes)
     if ($Target) { $ghArgs += @("--target", $Target) }
     if ($Prerelease) { $ghArgs += "--prerelease" }
     gh @ghArgs
