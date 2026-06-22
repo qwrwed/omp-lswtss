@@ -20,13 +20,29 @@ Keyboard messages must bypass the `lpMsg->hwnd == _currentWindowNativeHandle` ch
 
 The `+0x10` null check in `GetOrCreateCurrentRenderTargetView` was checking `DxgiObject::m_privateData._M_start` - the first pointer of an empty `std::vector`, which is always null in DXVK v2.3 because no game calls `SetPrivateData` on its swap chains. The check was intended to detect "internal presenter nulled during fullscreen transition" but the offset and comment were wrong for DXVK v2.3. Removed the check.
 
-## Working state (2026-06-19)
+## Working state (2026-06-22)
 
 - Game launches without crashing
 - F1 opens the Galaxy Unleashed overlay menu
 - Mouse is captured by the overlay in menu mode (camera does not move)
 - Touchpad controls the overlay cursor in menu mode
 - Esc closes the overlay and returns to play mode
+
+---
+
+## bcryptprimitives.dll missing from Wine 8.0
+
+`omp-lswtss-driver.dll` imports `bcryptprimitives.dll`. Wine 8.0 (GE-Proton8-21) registers it as a KnownDLL - meaning it only searches `system32` for it, never the game directory. GE-Proton8-21 ships no implementation, so the mod silently fails to load.
+
+Fix: copy a Wine 9.x LGPL implementation (hash `11bc32e4`, 45K, x86-64 PE) into `$PREFIX/drive_c/windows/system32/bcryptprimitives.dll`. Source on the Deck: `/home/deck/.local/share/Steam/steamapps/common/Proton 9.0 (Beta)/files/lib64/wine/x86_64-windows/bcryptprimitives.dll`. The release zip bundles it and `setup-linux.sh` installs it automatically.
+
+---
+
+## dinput8.dll override
+
+`dinput8.dll` must load as `native,builtin`. This can be set manually via Steam launch options (`WINEDLLOVERRIDES="dinput8=n,b" %command%`), but `setup-linux.sh` can't write `localconfig.vdf` while Steam is running, so it uses the Wine registry instead.
+
+Write the override into `HKCU\Software\Wine\AppDefaults\LEGOSTARWARSSKYWALKERSAGA_DX11.exe\DllOverrides` in `user.reg`. Wine sources this the same way as `WINEDLLOVERRIDES` - confirmed via PROTON_LOG showing `System WINEDLLOVERRIDES: dinput8=n,b`. `setup-linux.sh` writes this entry automatically.
 
 ---
 
@@ -49,13 +65,11 @@ The old two-stage build deleted `dist/overlay1/` before copying from the `--arch
 
 `BuildOverlay1.cs` no longer deletes the dist directory before building. It overlays new managed files on top of whatever is already there. Native CEF files (`libcef.dll`, `chrome_elf.dll`, `libEGL.dll`, `libGLESv2.dll`, `d3dcompiler_47.dll`, `dxcompiler.dll`, `dxil.dll`, `icudtl.dat`, `.pak` files, `Ijwhost.dll`) are copied from the NuGet build **only when absent** - i.e. as a fallback for local dev builds that have no upstream seed. When running via `package-release.ps1` the seed is present and those files are preserved.
 
-## Current upstream bundle also has the bad libcef.dll
+## libcef.dll source of truth
 
-As of 2026-06-20, the upstream release bundle (seeded by `package-release.ps1`) also ships the bad `libcef.dll`. Neither the upstream bundle nor the NuGet restore is safe to use.
+The good `libcef.dll` is in `dist/overlay1/libcef.dll` on the dev SD card (hash `90f4fa80`). It must never be overwritten - both the upstream bundle and the NuGet restore ship a bad version (hash `56f653a9`).
 
-The good `libcef.dll` lives in `dist/overlay1/libcef.dll` on the dev SD card (hash `90f4fa80`). It must be kept there and never overwritten.
-
-`package-release.ps1` was updated to skip native CEF files already present in `dist/overlay1/` during the seeding step, so repeated release builds preserve the good version automatically.
+`package-release.ps1` skips native CEF files already present in `dist/overlay1/` during seeding, so release builds automatically ship the good version.
 
 **If building on a new machine**: copy the good `libcef.dll` (hash `90f4fa80`, 226 455 552 bytes) into `dist/overlay1/libcef.dll` before running the release script. The backup on the Deck is at `~/mod-backup/mods/overlay1/libcef.dll`.
 
