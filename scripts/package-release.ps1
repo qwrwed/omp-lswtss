@@ -30,6 +30,10 @@ param(
     [string]$DotnetRuntime,
     # Same runtime OMP downloads itself (see download_dotnet_runtime_if_missing.rs).
     [string]$DotnetRuntimeUrl = "https://download.visualstudio.microsoft.com/download/pr/8abf4502-4a22-4a2e-bea0-9fe73379d62e/88146c1d41e53e08f9dbc92a217143de/dotnet-runtime-8.0.2-win-x64.zip",
+    # Branch/commit the release tag points at (e.g. steam-deck). Defaults to the
+    # repo's default branch.
+    [string]$Target,
+    [switch]$Prerelease,
     [switch]$Publish
 )
 
@@ -209,5 +213,8 @@ if ($Publish) {
     # -PublishRepo is mandatory so we never fall back to gh's default repo and
     # accidentally publish to the wrong place (e.g. upstream).
     if (-not $PublishRepo) { throw "-Publish requires -PublishRepo <owner>/<repo>" }
-    gh release create $Tag $outZip --repo $PublishRepo --title ($Title ?? $Tag) --notes ($Notes ?? "")
+    $ghArgs = @("release", "create", $Tag, $outZip, "--repo", $PublishRepo, "--title", ($Title ?? $Tag), "--notes", ($Notes ?? ""))
+    if ($Target) { $ghArgs += @("--target", $Target) }
+    if ($Prerelease) { $ghArgs += "--prerelease" }
+    gh @ghArgs
 }
